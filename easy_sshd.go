@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/sftp"
 	"github.com/schollz/progressbar/v3"
@@ -60,6 +61,20 @@ func sftpPush() {
 		fileInfo.Size(),
 		"uploading",
 	)
+
+	// 判断远程路径是否存在
+	remotePathDir := filepath.Dir(remotePath)
+	_, err = client.Stat(remotePathDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = client.MkdirAll(remotePathDir)
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			panic(err)
+		}
+	}
 
 	remoteFile, err := client.Create(remotePath)
 	if err != nil {

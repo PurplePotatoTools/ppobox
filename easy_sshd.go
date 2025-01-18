@@ -5,11 +5,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/sftp"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/crypto/ssh"
 )
+
+func toLinuxPath(path string) string {
+	return strings.Replace(path, "\\", "/", -1)
+}
 
 func sftpPush() {
 
@@ -55,6 +60,12 @@ func sftpPush() {
 	}
 	defer f.Close()
 	fileInfo, err := f.Stat()
+	if err != nil {
+		if os.IsNotExist(err) {
+			client.Remove(remotePath)
+			return
+		}
+	}
 	// bar := progressbar.Default(fileInfo.Size(), "uploading")
 
 	bar := progressbar.DefaultBytes(
@@ -63,10 +74,13 @@ func sftpPush() {
 	)
 
 	// 判断远程路径是否存在
-	remotePathDir := filepath.Dir(remotePath)
+	remotePath = toLinuxPath(remotePath)
+	remotePathDir := toLinuxPath(filepath.Dir(remotePath))
+	// log.Println("remotePathDir is ", remotePathDir)
 	_, err = client.Stat(remotePathDir)
 	if err != nil {
 		if os.IsNotExist(err) {
+			// log.Println("Remote path does not exist, creating it", remotePathDir)
 			err = client.MkdirAll(remotePathDir)
 			if err != nil {
 				panic(err)
@@ -78,6 +92,7 @@ func sftpPush() {
 
 	remoteFile, err := client.Create(remotePath)
 	if err != nil {
+		// log.Println("remotePath is ", remotePath)
 		panic(err)
 	}
 
